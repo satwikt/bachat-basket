@@ -35,7 +35,7 @@ public class SpeechController {
         }
         String type = audio.getContentType();
         if (type == null || !type.toLowerCase().startsWith("audio/")) {
-            throw new SpeechException(HttpStatus.BAD_REQUEST, "audio is required");
+            throw new SpeechException(HttpStatus.BAD_REQUEST, "audio must have an audio/* content type");
         }
         if (!LANGUAGES.contains(language)) {
             throw new SpeechException(HttpStatus.BAD_REQUEST, "unsupported language");
