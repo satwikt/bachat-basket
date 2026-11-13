@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: bachat
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+bachat:
+  mode: ${BACHAT_MODE:live}        # live | demo
+sarvam:
+  api-key: ${SARVAM_API_KEY:}
+  base-url: https://api.sarvam.ai
+  model: saaras:v4
+  keyterms: [doodh, bread, packet, loaf, dozen, anda, dahi, paneer]

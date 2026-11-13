@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bachat Basket - Voice test</title>
+<style>
+  body{font-family:system-ui,Arial,sans-serif;max-width:460px;margin:24px auto;padding:0 16px;color:#1b2a22}
+  h1{font-size:20px}
+  button{font-size:18px;padding:14px 20px;border:0;border-radius:12px;background:#1e7a4c;color:#fff;width:100%;margin:8px 0}
+  button.rec{background:#c0392b}
+  button:disabled{background:#9aa;}
+  select{font-size:16px;padding:10px;width:100%;margin:8px 0}
+  #status{margin:8px 0;color:#4f5d55}
+  pre{background:#f3f1e6;padding:12px;border-radius:10px;white-space:pre-wrap;word-break:break-word}
+  audio{width:100%;margin:8px 0}
+</style>
+</head>
+<body>
+<h1>Voice listing test</h1>
+<p>Say something like: "doodh 6 packet 22, bread 4 loaf 30"</p>
+<select id="lang">
+  <option value="unknown">Auto-detect</option>
+  <option value="hi-IN">Hindi</option>
+  <option value="mr-IN">Marathi</option>
+  <option value="gu-IN">Gujarati</option>
+  <option value="en-IN">English (India)</option>
+</select>
+<button id="rec">Start recording</button>
+<audio id="player" controls hidden></audio>
+<button id="send" disabled>Send to backend</button>
+<div id="status">Ready.</div>
+<pre id="out"></pre>
+<script>
+const MAX_SECONDS = 25;
+let recorder, chunks = [], blob = null, timer, started = 0, stream;
+const $ = id => document.getElementById(id);
+
+function setStatus(t){ $('status').textContent = t; }
+
+async function start(){
+  try { stream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ setStatus('Microphone blocked: ' + e.message); return; }
+  chunks = []; blob = null; $('send').disabled = true; $('player').hidden = true; $('out').textContent = '';
+  recorder = new MediaRecorder(stream);
+  recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  recorder.onstop = () => {
+    clearInterval(timer);
+    stream.getTracks().forEach(t => t.stop());
+    blob = new Blob(chunks, {type: recorder.mimeType || 'audio/webm'});
+    $('player').src = URL.createObjectURL(blob); $('player').hidden = false;
+    $('send').disabled = false;
+    $('rec').textContent = 'Record again'; $('rec').classList.remove('rec');
+    setStatus('Recorded ' + ((Date.now()-started)/1000).toFixed(1) + ' s (' + blob.type + ', ' + Math.round(blob.size/1024) + ' KB).');
+  };
+  recorder.start();
+  started = Date.now();
+  $('rec').textContent = 'Stop'; $('rec').classList.add('rec');
+  timer = setInterval(() => {
+    const s = (Date.now()-started)/1000;
+    setStatus('Recording ' + s.toFixed(0) + ' s');
+    if (s >= MAX_SECONDS) recorder.stop();
+  }, 250);
+}
+
+$('rec').onclick = () => {
+  if (recorder && recorder.state === 'recording') recorder.stop(); else start();
+};
+
+$('send').onclick = async () => {
+  if (!blob) return;
+  $('send').disabled = true; setStatus('Sending...');
+  const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+  const fd = new FormData();
+  fd.append('audio', blob, 'recording.' + ext);
+  fd.append('language', $('lang').value);
+  try {
+    const t0 = performance.now();
+    const res = await fetch('/api/speech/transcribe', {method:'POST', body: fd});
+    const text = await res.text();
+    let shown = text; try { shown = JSON.stringify(JSON.parse(text), null, 2); } catch(_){}
+    $('out').textContent = 'HTTP ' + res.status + '\n' + shown;
+    setStatus('Done in ' + Math.round(performance.now()-t0) + ' ms.');
+  } catch(e){ setStatus('Request failed: ' + e.message); }
+  $('send').disabled = false;
+};
+</script>
+</body>
+</html>
