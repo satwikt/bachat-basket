@@ -1,0 +1,9 @@
+target
+.git
+.vscode
+.idea
+.env
+HELP.md
+docs
+web/node_modules
+web/dist
