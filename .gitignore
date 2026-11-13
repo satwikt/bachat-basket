@@ -27,3 +27,7 @@ replay_pid*
 
 # build output
 target/
+
+# frontend
+web/node_modules/
+web/dist/
