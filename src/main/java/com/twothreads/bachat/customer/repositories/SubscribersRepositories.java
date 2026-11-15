@@ -1,5 +1,6 @@
 package com.twothreads.bachat.customer.repositories;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,4 +12,5 @@ public interface SubscribersRepositories extends JpaRepository<Subscription, Lon
 
     List<Subscription> findByCustomerId(Long customerId);
     List<Subscription> findByActiveTrueAndCustomerId(Long customerId);
+    Optional<Subscription> findByCustomerIdAndShopId(Long customerId, Long shopId);
 }

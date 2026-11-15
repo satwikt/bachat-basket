@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 public class StubSpeechClient implements SpeechPort {
     @Override
     public Transcript transcribe(byte[] audio, String filename, String contentType, String languageCode) {
-        return new Transcript("doodh 6 packet 22, bread 4 loaf 30", "hi-IN", "stub");
+        return new Transcript(
+                "doodh 6 packet, original price 30 discounted price 23, "
+                        + "bread 4 loaf, original price 35 discounted price 30",
+                "hi-IN", "stub");
     }
 }

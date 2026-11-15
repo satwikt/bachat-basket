@@ -20,6 +20,9 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
 
     List<Listing> findByShopIdOrderByCreatedAtDesc(Long shopId);
 
+    // used by "mark all sold out" (any end time)
+    List<Listing> findByShopIdAndStatus(Long shopId, Listing.Status status);
+
     List<Listing> findByShopIdInAndStatusAndEndsAtAfterOrderByEndsAtAsc(
             List<Long> shopIds, Listing.Status status, OffsetDateTime now);
 
