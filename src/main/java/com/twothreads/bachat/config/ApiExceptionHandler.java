@@ -11,12 +11,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import com.twothreads.bachat.customer.CustomerNotFoundException;
 import com.twothreads.bachat.listing.ListingValidationException;
 import com.twothreads.bachat.listing.ShopNotFoundException;
 import com.twothreads.bachat.speech.SpeechException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(CustomerNotFoundException.class)
+    ResponseEntity<Map<String, String>> customerNotFound(CustomerNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "customer not found"));
+    }
 
     @ExceptionHandler(SpeechException.class)
     ResponseEntity<Map<String, String>> speech(SpeechException e) {
