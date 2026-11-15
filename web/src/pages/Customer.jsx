@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import '../customer.css'
 
 const CUSTOMERS = '/api/customers'
 const ID_KEY = 'bb_customer_id'
 const TABS = [
-  { key: 'home', label: 'Home' },
-  { key: 'nearby', label: 'Nearby' },
-  { key: 'follow', label: 'Following' },
-  { key: 'deal', label: 'Find a deal' },
+  { key: 'home', icon: '🏠', label: 'Home', title: 'Home', lead: 'New offers from shops you follow.' },
+  { key: 'nearby', icon: '📍', label: 'Nearby', title: 'Nearby', lead: 'Shops around you. Follow the ones you like.' },
+  { key: 'follow', icon: '👥', label: 'Following', title: 'Following', lead: 'Shops you follow. Their offers show on Home.' },
+  { key: 'deal', icon: '🏷️', label: 'Find a deal', title: 'Find a deal', lead: "Ask about today's offers from the shops you follow." },
 ]
 
 // ---- small helpers ----
@@ -187,6 +188,7 @@ export default function Customer() {
     if (key === 'nearby') askLocation()
   }
 
+  const current = TABS.find((t) => t.key === tab)
   const followedShops = shops.filter((s) => followed.has(s.id))
   const withDistance = shops
     .map((s) => ({
@@ -197,68 +199,71 @@ export default function Customer() {
 
   return (
     <div className="cust">
-      <header className="cust-top">
-        <div className="cust-brand">
-          <span className="cust-mark">BB</span>
-          <span>Bachat Basket</span>
-        </div>
-        <span className="cust-sub">Offers near you</span>
-      </header>
+      <div className="topbar">
+        <div className="brand">Bachat<span>Basket</span></div>
+        <div className="title">{current.title}</div>
+      </div>
 
-      <main className="cust-body">
-        {error && <div className="cust-alert">{error}</div>}
-        {loading && <div className="cust-muted">Loading shops…</div>}
+      <main>
+        {error && <div className="alert">{error}</div>}
+        {loading && <div className="empty">Loading shops…</div>}
+
+        {!loading && (
+          <>
+            <h1>{tab === 'home' ? 'Latest offers' : current.title}</h1>
+            <p className="lead">{current.lead}</p>
+          </>
+        )}
 
         {!loading && tab === 'home' && (
-          <>
+          <div className="stack">
             {followedShops.length === 0 && (
-              <Empty
-                title="Follow a shop to see its offers"
-                action="Find shops nearby"
-                onAction={() => openTab('nearby')}
-              />
+              <div className="empty">
+                Follow a shop to see its offers here.
+                <div>
+                  <button className="btn" onClick={() => openTab('nearby')}>Find shops nearby</button>
+                </div>
+              </div>
             )}
             {followedShops.map((shop) => {
               const list = offers[shop.id] || []
               const link = directionsUrl(shop)
               return (
-                <section className="cust-card" key={shop.id}>
-                  <div className="cust-row">
+                <div className="grp" key={shop.id}>
+                  <div className="grphead">
                     <div>
-                      <h3>{shop.name}</h3>
-                      {shop.closingTime && <div className="cust-muted">offer ends {hhmm(shop.closingTime)}</div>}
+                      <strong>{shop.name}</strong>
+                      {shop.closingTime && <div className="tag">offers end {hhmm(shop.closingTime)}</div>}
                     </div>
                     {link && (
-                      <a className="cust-link" href={link} target="_blank" rel="noreferrer">Directions</a>
+                      <a className="directions" href={link} target="_blank" rel="noreferrer">Directions</a>
                     )}
                   </div>
-                  {list.length === 0 && <div className="cust-muted cust-gap">No offers right now.</div>}
+                  {list.length === 0 && <div className="drow"><small>No offers right now.</small></div>}
                   {list.map((l) => (
-                    <div className="cust-offer" key={l.id}>
-                      <div>
-                        <div className="cust-item">{l.itemName}</div>
-                        <div className="cust-muted">{l.quantity} {unitLabel(l.quantity, l.unit)}</div>
-                        <div className="cust-muted">ends {endsLabel(l.endsAt)}</div>
-                      </div>
-                      <div className="cust-price-box">
-                        <span className="cust-price">₹{l.offerPrice}</span>
-                        {l.originalPrice != null && <span className="cust-old">₹{l.originalPrice}</span>}
-                        {l.discountPercent != null && <span className="cust-badge">{l.discountPercent}% off</span>}
-                      </div>
+                    <div className="drow" key={l.id}>
+                      <span className="deal">{l.itemName}</span>
+                      <span className="price">₹{l.offerPrice}</span>
+                      {l.originalPrice != null && <span className="old">₹{l.originalPrice}</span>}
+                      <small>
+                        {l.quantity} {unitLabel(l.quantity, l.unit)}
+                        {l.discountPercent != null && ` · ${l.discountPercent}% off`}
+                        {` · ends ${endsLabel(l.endsAt)}`}
+                      </small>
                     </div>
                   ))}
-                </section>
+                </div>
               )
             })}
-          </>
+          </div>
         )}
 
         {!loading && tab === 'nearby' && (
-          <>
-            <div className="cust-muted cust-gap">
+          <div className="stack">
+            <div className="lead" style={{ margin: 0, fontSize: 13 }}>
               {location
-                ? 'Shops sorted by distance from you.'
-                : 'Allow location to see how far each shop is. Shops are listed without distances until then.'}
+                ? 'Sorted by distance from you.'
+                : 'Allow location to see distances. Shops are listed without them until then.'}
             </div>
             {withDistance.map((shop) => (
               <ShopRow
@@ -269,20 +274,18 @@ export default function Customer() {
                 onToggle={() => toggleFollow(shop.id)}
               />
             ))}
-          </>
+          </div>
         )}
 
         {!loading && tab === 'follow' && (
-          <>
+          <div className="stack">
             {followedShops.length === 0 && (
-              <Empty
-                title="You are not following any shop yet"
-                action="Find shops nearby"
-                onAction={() => openTab('nearby')}
-              />
-            )}
-            {followedShops.length > 0 && (
-              <div className="cust-muted cust-gap">Shops you follow. Their offers show on Home.</div>
+              <div className="empty">
+                You are not following any shop yet.
+                <div>
+                  <button className="btn" onClick={() => openTab('nearby')}>Find shops nearby</button>
+                </div>
+              </div>
             )}
             {followedShops.map((shop) => (
               <ShopRow
@@ -292,32 +295,29 @@ export default function Customer() {
                 onToggle={() => toggleFollow(shop.id)}
               />
             ))}
-          </>
+          </div>
         )}
 
         {!loading && tab === 'deal' && (
-          <section className="cust-card">
-            <h3>Find a deal</h3>
-            <p className="cust-muted">
-              Ask about today's offers from the shops you follow, by voice or by typing.
-              This is the next step to be built.
-            </p>
-            <input className="cust-input" placeholder="e.g. where is the lowest tomato price?" disabled />
-            <button className="cust-btn" disabled>Ask</button>
-          </section>
+          <div className="stack">
+            <input className="input" placeholder="e.g. where is the lowest tomato price?" disabled />
+            <button className="btn" disabled>Ask</button>
+            <div className="empty">Voice and typed questions are the next step to be built.</div>
+          </div>
         )}
 
-        <p className="cust-note">Prices are set by each shop. Original price is the price before the discount.</p>
+        <p className="note">Prices are set by each shop. Original price is the price before the discount.</p>
       </main>
 
-      <nav className="cust-tabs" aria-label="Customer sections">
+      <nav className="tabbar" aria-label="Customer sections">
         {TABS.map((t) => (
           <button
             key={t.key}
-            className={tab === t.key ? 'on' : ''}
+            className={tab === t.key ? 'active' : ''}
             onClick={() => openTab(t.key)}
           >
-            {t.label}
+            <span className="i">{t.icon}</span>
+            <span className="l">{t.label}</span>
           </button>
         ))}
       </nav>
@@ -326,27 +326,18 @@ export default function Customer() {
 }
 
 function ShopRow({ shop, distance, following, onToggle }) {
+  const details = [distance, shop.closingTime ? `closes ${hhmm(shop.closingTime)}` : null]
+    .filter(Boolean)
+    .join(' · ')
   return (
-    <section className="cust-card cust-row">
+    <div className="item">
       <div>
-        <h3>{shop.name}</h3>
-        <div className="cust-muted">
-          {distance ? `${distance} · ` : ''}
-          {shop.closingTime ? `closes ${hhmm(shop.closingTime)}` : ''}
-        </div>
+        <strong>{shop.name}</strong>
+        {details && <small>{details}</small>}
       </div>
-      <button className={'cust-btn small' + (following ? ' alt' : '')} onClick={onToggle}>
+      <button className={'follow' + (following ? ' on' : '')} onClick={onToggle}>
         {following ? 'Following' : 'Follow'}
       </button>
-    </section>
-  )
-}
-
-function Empty({ title, action, onAction }) {
-  return (
-    <section className="cust-card cust-empty">
-      <h3>{title}</h3>
-      <button className="cust-btn small" onClick={onAction}>{action}</button>
-    </section>
+    </div>
   )
 }
