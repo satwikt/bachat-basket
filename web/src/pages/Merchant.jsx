@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const MAX_SECONDS = 25
-const SHOP = '/api/shops/1/listings' // no auth in MVP; shop 1 is hard-coded (spec D5)
+const SHOP = '/api/shops/2/listings' // no auth in MVP; shop 2 (Matoshree Fresh Mart) is hard-coded for now
 
 let nextKey = 1
 
@@ -268,7 +268,7 @@ export default function Merchant() {
       </div>
       <div className="pad">
         <div className="card">
-          <h3>Sharma General Store</h3>
+          <h3>Matoshree Fresh Mart</h3>
           <div className="muted">
             Say each item with its quantity, original price and discounted price, in that order.
             Example: "doodh 6 packet, original price 30 discounted price 23"
