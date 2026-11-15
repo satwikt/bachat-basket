@@ -28,19 +28,31 @@ public final class VoiceListingParser {
     private static final Pattern SPLIT = Pattern.compile("\\s*[,;\\r\\n]+\\s*|\\s+(?:and|aur|then)\\s+");
 
     /** A segment that continues the previous one (for example ", original price 30"). */
-    private static final Pattern CONTINUATION = Pattern.compile("^(?:original|discounted|discount|offer)\\b");
+    /** Words for "original" and "discounted" (English, Gujarati spellings). The template accepts these. */
+    private static final String ORIGINAL_WORD =
+            "(?:original|ઓરિજનલ|ઓરિજિનલ|ઓરીજનલ|ઓરીજિનલ)";
+    private static final String DISCOUNTED_WORD =
+            "(?:discounted|discount|offer|ડિસ્કાઉન્ટેડ|ડિસ્કાઉન્ટ|ઓફર)";
+    /** "price" in English or Gujarati, optional after either word. */
+    private static final String PRICE_WORD = "(?:\\s+(?:price|પ્રાઈસ|કિંમત))?";
+
+    /** A segment that continues the previous one (for example ", original price 30"). */
+    private static final Pattern CONTINUATION = Pattern.compile(
+            "^(?:" + ORIGINAL_WORD + "|" + DISCOUNTED_WORD + ")(?![\\p{L}\\p{M}])");
 
     private static final Pattern TEMPLATE = Pattern.compile(
             "^(?<item>[\\p{L}\\p{M}][\\p{L}\\p{M} .'-]*?)\\s+(?<qty>\\d+)\\s+(?:(?<unit>[\\p{L}\\p{M}]+)\\s+)?"
-                    + "original(?:\\s+price)?\\s+(?<orig>\\d+(?:\\.\\d+)?)\\s+"
-                    + "(?:discounted|discount|offer)(?:\\s+price)?\\s+(?<price>\\d+(?:\\.\\d+)?)$");
+                    + ORIGINAL_WORD + PRICE_WORD + "\\s+(?<orig>\\d+(?:\\.\\d+)?)\\s+"
+                    + DISCOUNTED_WORD + PRICE_WORD + "\\s+(?<price>\\d+(?:\\.\\d+)?)$");
 
     private static final Map<String, String> UNITS = Map.ofEntries(
             Map.entry("packets", "packet"), Map.entry("pack", "packet"), Map.entry("pkt", "packet"),
+            Map.entry("પેકેટ", "packet"),
             Map.entry("kilo", "kg"), Map.entry("kilogram", "kg"), Map.entry("kilograms", "kg"),
-            Map.entry("gram", "g"), Map.entry("grams", "g"),
-            Map.entry("litre", "l"), Map.entry("liter", "l"), Map.entry("ltr", "l"),
-            Map.entry("pieces", "pc"), Map.entry("piece", "pc"), Map.entry("nang", "pc"));
+            Map.entry("કિલો", "kg"),
+            Map.entry("gram", "g"), Map.entry("grams", "g"), Map.entry("ગ્રામ", "g"),
+            Map.entry("litre", "l"), Map.entry("liter", "l"), Map.entry("ltr", "l"), Map.entry("લિટર", "l"),
+            Map.entry("pieces", "pc"), Map.entry("piece", "pc"), Map.entry("nang", "pc"), Map.entry("નંગ", "pc"));
 
     private final SynonymDictionary dictionary;
 

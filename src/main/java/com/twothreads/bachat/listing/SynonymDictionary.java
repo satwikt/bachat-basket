@@ -18,13 +18,14 @@ public final class SynonymDictionary {
     }
 
     private static final List<Entry> ENTRIES = List.of(
-            new Entry("MILK", "Milk", "milk", "doodh", "dudh", "दूध"),
-            new Entry("BREAD", "Bread", "bread", "ब्रेड"),
-            new Entry("TOMATO", "Tomato", "tomato", "tomatoes", "tamatar", "टमाटर"),
-            new Entry("EGG", "Egg", "egg", "eggs", "anda", "अंडा"),
-            new Entry("CURD", "Curd", "curd", "dahi", "दही"),
-            new Entry("PANEER", "Paneer", "paneer", "पनीर"),
-            new Entry("ONION", "Onion", "onion", "onions", "pyaz", "कांदा"));
+            new Entry("MILK", "Milk", "milk", "doodh", "dudh", "दूध", "દૂધ"),
+            new Entry("BREAD", "Bread", "bread", "ब्रेड", "બ્રેડ"),
+            new Entry("TOMATO", "Tomato", "tomato", "tomatoes", "tamatar", "टमाटर",
+                    "ટામેટા", "ટમેટા", "ટામેટું"),
+            new Entry("EGG", "Egg", "egg", "eggs", "anda", "अंडा", "ઈંડું", "ઇંડું", "ઈંડા", "ઇંડા"),
+            new Entry("CURD", "Curd", "curd", "dahi", "दही", "દહીં"),
+            new Entry("PANEER", "Paneer", "paneer", "पनीर", "પનીર"),
+            new Entry("ONION", "Onion", "onion", "onions", "pyaz", "कांदा", "ડુંગળી"));
 
     private final Map<String, Item> byWord;
     private final Set<String> keys;
