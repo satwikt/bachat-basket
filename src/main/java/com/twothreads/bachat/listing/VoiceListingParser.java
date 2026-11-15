@@ -68,13 +68,16 @@ public final class VoiceListingParser {
         String composed = Normalizer.normalize(transcript.trim(), Normalizer.Form.NFC);
         String lower = composed.toLowerCase(Locale.ROOT);
         String noCurrency = CURRENCY.matcher(lower).replaceAll(" ");
-        return noCurrency.replaceAll("[ \\t]+", " ");
+        // speech tolerance: "twenty-three" -> "twenty three"; a filler "is" ("original price is 30") is dropped
+        String spaced = noCurrency.replaceAll("(?<=\\p{L})-(?=\\p{L})", " ")
+                .replaceAll("(?<![\\p{L}\\p{M}])is(?![\\p{L}\\p{M}])", " ");
+        return spaced.replaceAll("[ \\t]+", " ");
     }
 
     /** Step 2a: split into segments on commas, newlines, "and", "aur", "then". */
     private static List<String> split(String text) {
         return Arrays.stream(SPLIT.split(text))
-                .map(String::trim)
+                .map(s -> s.replaceAll("[.!?।]+$", "").trim()) // speech often ends a phrase with a full stop
                 .filter(s -> !s.isEmpty())
                 .toList();
     }
