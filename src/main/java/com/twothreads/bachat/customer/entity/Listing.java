@@ -13,9 +13,6 @@ public class Listing {
 
     public enum Source { MANUAL, SPEECH, PHOTO }
 
-    // REFERENCE (catalog) or MANUAL (typed or spoken by the merchant); null when unknown
-    public enum OriginalPriceSource { REFERENCE, MANUAL }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -52,13 +49,9 @@ public class Listing {
     @Column(nullable = false, length = 20)
     private Source source = Source.MANUAL;
 
-    // added by V2__listing_voice_fields.sql
+    // added by V2__listing_voice_fields.sql; the merchant always speaks or types it (V3 removed the source column)
     @Column(name = "original_price_rupees", precision = 10, scale = 2)
     private BigDecimal originalPriceRupees;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "original_price_source", length = 20)
-    private OriginalPriceSource originalPriceSource;
 
     @Column(name = "raw_phrase", length = 300)
     private String rawPhrase;
@@ -93,8 +86,6 @@ public class Listing {
     public void setSource(Source source) { this.source = source; }
     public BigDecimal getOriginalPriceRupees() { return originalPriceRupees; }
     public void setOriginalPriceRupees(BigDecimal originalPriceRupees) { this.originalPriceRupees = originalPriceRupees; }
-    public OriginalPriceSource getOriginalPriceSource() { return originalPriceSource; }
-    public void setOriginalPriceSource(OriginalPriceSource originalPriceSource) { this.originalPriceSource = originalPriceSource; }
     public String getRawPhrase() { return rawPhrase; }
     public void setRawPhrase(String rawPhrase) { this.rawPhrase = rawPhrase; }
     public String getItemKey() { return itemKey; }
