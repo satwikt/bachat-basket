@@ -180,7 +180,7 @@ Runs on every interpreter result, including the LLM's:
 Input: validated `Intent`, customer `lat`/`lng` (nullable). Steps:
 Names used here: column `listing.price_rupees` (the offer price, per unit), `listing.original_price_rupees`, `listing.item_key`, `listing.shop_id` (plain `Long`, so join with `join Shop s on s.id = l.shopId`). `Shop` has `latitude`/`longitude` (listing spec 5.2).
 
-Demo data: do NOT add a versioned migration for demo shops or listings (it would also run against the live database, and listings need `ends_at` relative to now, which static SQL cannot give). Instead add a `DemoDataLoader` (`@Profile("demo")` `CommandLineRunner`) that, only when the shop table has one row, inserts two more shops with coordinates (Patil Dairy and Provisions, Fresh Mart) and a few ACTIVE listings with `ends_at` computed from the injected `Clock`.
+Demo data: do NOT add a versioned migration for demo shops or listings (it would also run against the live database, and listings need `ends_at` relative to now, which static SQL cannot give). Instead add a `DemoDataLoader` (`@Profile("demo")` `CommandLineRunner`, profile only: do not also key it on `bachat.mode`, because the test config sets `bachat.mode: demo` and the loader must not run in tests) that, only when the shop table has one row, inserts two more shops with coordinates (Patil Dairy and Provisions, Fresh Mart) and a few ACTIVE listings with `ends_at` computed from the injected `Clock`.
 
 Algorithm:
 

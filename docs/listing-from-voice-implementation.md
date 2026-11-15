@@ -427,7 +427,7 @@ Phases in this spec:
 4. Merchant page
 5. Customer page and manual check
 
-Before starting phase 1, run `git status` and commit or stash any unrelated changes. Do not commit on your own; review the diff first.
+Before starting phase 1, run `git status` and commit or stash any unrelated changes. Commit at the end of each phase as the Branch rule at the top says (on the feature branch only, never push); the user reviews each phase's diff before naming the next phase.
 
 ## 13. Risks and checks
 
