@@ -43,3 +43,13 @@ select, input { font-size: 16px; padding: 10px; border: 1px solid var(--line); b
 .home h1 { font-size: 34px; margin: 0 0 8px; color: var(--dark); }
 .tag { color: var(--muted); margin-bottom: 28px; }
 .note { font-size: 12px; color: var(--muted); text-align: center; margin-top: 24px; }
+.badge.bad { background: #f5c6c0; color: #6b1a12; }
+.lrow { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+.lrow.bad { border-color: var(--red); background: #fdf1ef; }
+.lrow .lbl { font-size: 12px; color: var(--muted); margin: 6px 0 2px; }
+.lrow .lgrid1 { display: grid; grid-template-columns: 1.6fr .7fr .8fr; gap: 6px; }
+.lrow .lgrid2 { display: grid; grid-template-columns: 1fr 1fr .6fr; gap: 6px; }
+.lrow input { padding: 8px; font-size: 15px; }
+.lrow .pct { font-weight: 700; color: var(--green); padding-top: 8px; }
+.lrow .foot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.lrow .foot .btn { margin-left: auto; }
