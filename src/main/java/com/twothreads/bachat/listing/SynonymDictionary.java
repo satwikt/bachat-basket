@@ -18,7 +18,7 @@ public final class SynonymDictionary {
     }
 
     private static final List<Entry> ENTRIES = List.of(
-            new Entry("MILK", "Milk", "milk", "doodh", "dudh", "दूध", "દૂધ"),
+            new Entry("MILK", "Milk", "milk", "doodh", "dudh", "दूध", "મિલ્ક", "मिल्क", "દૂધ"),
             new Entry("BREAD", "Bread", "bread", "ब्रेड", "બ્રેડ"),
             new Entry("TOMATO", "Tomato", "tomato", "tomatoes", "tamatar", "टमाटर",
                     "ટામેટા", "ટમેટા", "ટામેટું"),

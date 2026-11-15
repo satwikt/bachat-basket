@@ -76,7 +76,7 @@ function hhmm(time) {
 
 /** Words people say for each item. Same idea as the server's SynonymDictionary; keep them in step. */
 const ITEM_WORDS = {
-  MILK: ['milk', 'doodh', 'dudh', 'दूध'],
+  MILK: ['milk', 'doodh', 'dudh', 'दूध', 'मिल्क', 'મિલ્ક', 'દૂધ'],
   BREAD: ['bread', 'ब्रेड'],
   TOMATO: ['tomato', 'tomatoes', 'tamatar', 'टमाटर'],
   EGG: ['egg', 'eggs', 'anda', 'अंडा'],
