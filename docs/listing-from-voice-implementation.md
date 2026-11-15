@@ -1,6 +1,6 @@
 # Implementation spec: Voice listing to offers (Bachat Basket)
 
-Date: 2026-11-15
+Date: 2026-11-15 (revised the same day: the merchant is the only source of prices, decision D2)
 Builds on: `docs/sarvam-stt-implementation.md` (speech-to-text is done; this is the "Pack Reader" step that spec left out).
 Implementer: Claude Code CLI. Work through the phases in order (section 12). Each phase should compile and pass its tests before the next starts.
 
@@ -8,19 +8,19 @@ Implementer: Claude Code CLI. Work through the phases in order (section 12). Eac
 
 ## 1. Goal
 
-A shopkeeper speaks a listing. The app turns it into rows in an internal table the shopkeeper can check and edit. When the shopkeeper confirms, the rows become live offers that shoppers see.
+A shopkeeper speaks a listing with two prices per item: the original price and the discounted price. The app turns it into rows in an internal table the shopkeeper can check and edit. When the shopkeeper confirms, the rows become live offers that shoppers see.
 
 ```
-Shopkeeper speaks: "doodh 6 packet 22, bread 4 loaf 30, tamatar 5 kg 15"
+Shopkeeper speaks: "doodh 6 packet, original price 30 discounted price 23, bread 4 loaf, original price 35 discounted price 30, tamatar 5 kg, original price 30 discounted price 15"
         |
         v  POST /api/speech/transcribe            (already built)
-Transcript: "doodh 6 packet 22, bread 4 loaf 30, tamatar 5 kg 15"
+Transcript: (the same words as the speech)
         |
         v  POST /api/shops/{shopId}/listings/parse   (NEW, pure parser, no DB write)
 Internal table (merchant side, editable):
   Item   | Qty | Unit   | Offer ₹ | Original ₹ | % off | Flags
-  Milk   |  6  | packet |   22    |    28      |  21%  |
-  Bread  |  4  | loaf   |   30    |    --      |   --  | ORIGINAL PRICE MISSING
+  Milk   |  6  | packet |   23    |    30      |  23%  |
+  Bread  |  4  | loaf   |   30    |    35      |  14%  |
   Tomato |  5  | kg     |   15    |    30      |  50%  |
         |
         v  shopkeeper fixes flags, taps "List now"
@@ -29,19 +29,19 @@ Internal table (merchant side, editable):
         |
         v  GET  /api/shops/{shopId}/listings          (NEW)
 Shopper side (Customer page):
-  Milk     6 packets   ₹22  (was ₹28)   21% off   ends 9:00 pm
+  Milk     6 packets   ₹23  (was ₹30)   23% off   ends 9:00 pm
   Tomato   5 kg        ₹15  (was ₹30)   50% off   ends 9:00 pm
 ```
 
 Terms used below:
-- **Offer price**: the price the shopkeeper speaks. It is per unit (see decision D1).
-- **Original price**: the usual or MRP price, shown struck through to shoppers. It is not spoken. It comes from a reference table and can be edited (decision D2).
+- **Original price**: the price before the discount, shown struck through to shoppers. The merchant always says it. It is required.
+- **Offer price**: the discounted price the shopkeeper says. It is per unit (see decision D1).
+- There is no reference or catalog price table. The merchant is the single source of truth (decision D2).
 
 ## 2. Scope
 
 In scope:
-- Deterministic transcript parser (Java, no LLM) that returns structured lines and issues.
-- Reference price table with seed rows for the two examples in this spec.
+- Deterministic transcript parser (Java, no LLM) that returns structured lines and issues. It reads one fixed template per item: original price first, then discounted price.
 - Listing save and read endpoints, plus "mark all sold out".
 - Merchant page: replace the dummy parsing in `web/src/pages/Merchant.jsx` with the real parse call and an editable internal table. Wire "List now" and "Mark all sold out" to the API.
 - Customer page: replace hard-coded `SHOPS` data in `web/src/pages/Customer.jsx` with fetched listings.
@@ -56,19 +56,26 @@ Out of scope (later):
 
 ## 3. Worked examples (these are the acceptance tests)
 
-Input transcript -> expected parsed lines. Seed data in section 5 makes these results exact.
+Input transcript -> expected parsed lines. The spoken template for every item is:
+
+`<item> <quantity> [<unit>], original price <original> discounted price <offer>`
+
+Original comes first, then discounted. Both prices are per unit.
 
 | Transcript segment | Item | Qty | Unit | Offer ₹ | Original ₹ | Issues |
 |---|---|---|---|---|---|---|
-| `doodh 6 packet 22` | Milk | 6 | packet | 22 | 28 (REFERENCE) | none |
-| `bread 4 loaf 30` | Bread | 4 | loaf | 30 | null | ORIGINAL_PRICE_MISSING (warning) |
-| `tamatar 5 kg 15 rs original price 30 rs` | Tomato | 5 | kg | 15 | 30 (MANUAL, spoken) | none |
-| `doodh 6 22` | Milk | 6 | packet (default from reference) | 22 | 28 (REFERENCE) | NO_UNIT (warning) |
-| `doodh 6 packet 30` | Milk | 6 | packet | 30 | 28 (REFERENCE) | PRICE_ABOVE_ORIGINAL (blocking) |
-| `doodh 0 packet 22` | Milk | 0 | packet | 22 | 28 | ZERO_QUANTITY (blocking) |
+| `doodh 6 packet, original price 30 discounted price 23` | Milk | 6 | packet | 23 | 30 | none |
+| `bread 4 loaf, original price 35 discounted price 30` | Bread | 4 | loaf | 30 | 35 | none |
+| `tamatar 5 kg, original price 30 discounted price 15` | Tomato | 5 | kg | 15 | 30 | none |
+| `doodh 6, original price 30 discounted price 23` | Milk | 6 | pc (default) | 23 | 30 | NO_UNIT (warning) |
+| `doodh 6 packet, original price 30 discounted price 30` | Milk | 6 | packet | 30 | 30 | PRICE_ABOVE_ORIGINAL (blocking) |
+| `doodh 6 packet, discounted price 23` | null | null | null | null | null | UNPARSED (blocking: original price missing) |
+| `doodh 6 packet 22` | null | null | null | null | null | UNPARSED (blocking: old short form, not accepted) |
+| `doodh 0 packet, original price 30 discounted price 23` | Milk | 0 | packet | 23 | 30 | ZERO_QUANTITY (blocking) |
+| `doodh 6 packet, original price 30 discounted price 0` | Milk | 6 | packet | 0 | 30 | MISSING_PRICE (blocking) |
 | `hmm achha` | null | null | null | null | null | UNPARSED (blocking, raw text kept for manual fix) |
 
-Input variants the parser must also accept: `Doodh 6 Packet 22 Rs`, `doodh six packet twenty two`, `doodh 6 packet ₹22`, `doodh 6 packet 22/-`, and newline-separated lines instead of commas.
+Input variants the parser must also accept: `Doodh 6 Packet, Original Price 30 Rs Discounted Price 23 Rs`, `doodh six packet, original price thirty discounted price twenty three`, `doodh 6 packet, original price ₹30 discounted price ₹23/-`, and newline-separated lines instead of commas.
 
 ## 4. Existing code you must read first
 
@@ -79,13 +86,15 @@ Input variants the parser must also accept: `Doodh 6 Packet 22 Rs`, `doodh six p
 - `web/src/pages/Merchant.jsx`: current dummy parse (`setItems([...])` with hard-coded rows), "List now" only sets local state, "Mark all sold out" only resets local state.
 - `web/src/pages/Customer.jsx`: `SHOPS` constant with sample data. Keep the layout and classes; replace the data source.
 - `web/vite.config.js`: already proxies `/api` to `http://localhost:8080`. No change needed.
-- The repo has no JPA entities or repositories yet. You will create them.
+- Entities: the `Listing` entity and `ListingRepository` already exist in `customer/entity` and `customer/repositories` (committed by the customer work). Reuse them. Do not create a second `Listing` entity or repository.
 
 Java 21, Spring Boot 4.1.x, base package `com.twothreads.bachat`. Use `java.time` and time zone `Asia/Kolkata` for all time logic.
 
 ## 5. Data model
 
-### 5.1 Migration `V2__listing_voice_fields.sql`
+### 5.1 Migrations
+
+`V2__listing_voice_fields.sql` is committed (phase 1). Its reference-table parts are superseded by V3 below. As committed:
 
 ```sql
 -- Original (usual/MRP) price per unit, shown struck through to shoppers. Nullable: may be unknown.
@@ -122,6 +131,16 @@ insert into reference_price (item_key, unit, usual_price_rupees) values
     ('TOMATO', 'kg',     30);
 ```
 
+`V3__drop_reference_price.sql` (new, decision D2). The merchant is the only source of prices, so the reference table and the source column go:
+
+```sql
+-- The merchant always speaks or types the original price. No catalog, no source column.
+drop table reference_price;
+alter table listing drop column original_price_source;
+```
+
+The columns that stay on `listing` are `original_price_rupees`, `raw_phrase` and `item_key`. `original_price_rupees` is now required by the application (the database keeps it nullable so that old rows still load).
+
 Use the same SQL on H2 (demo profile and tests), in PostgreSQL mode. Quantity stays `integer` (V1): the MVP supports whole quantities only, so "1.5 kg" is not parsed (it becomes UNPARSED and the shopkeeper types it). Do not alter the `quantity` column.
 
 ### 5.1a Run profiles (required; neither exists today)
@@ -136,9 +155,10 @@ Phase 1 must end with `./mvnw test` green. If `BachatApplicationTests` still fai
 ### 5.2 JPA entities and repositories
 
 - `Shop` (maps `shop`). Fields: `id`, `name`, `closingTime` (`LocalTime`), `latitude` and `longitude` (`Double`, nullable). The customer "Ask" spec needs the coordinates.
-- `Listing` (maps `listing`). All columns from V1 plus the four new ones. `source` enum `ListingSource {MANUAL, SPEECH, PHOTO}`. `status` enum `ListingStatus {ACTIVE, SOLD_OUT, EXPIRED}`. Money as `BigDecimal`.
-- `ReferencePrice` (maps `reference_price`).
-- `ListingRepository`, `ReferencePriceRepository`, `ShopRepository` (Spring Data JPA).
+- `Listing` (maps `listing`): the committed entity in `customer/entity/Listing.java`. It has all V1 columns plus `original_price_rupees`, `raw_phrase` and `item_key`. `source` enum `Listing.Source {MANUAL, SPEECH, PHOTO}`. `status` enum `Listing.Status {ACTIVE, SOLD_OUT, EXPIRED}`. Money as `BigDecimal`. The merchant's original price is `originalPriceRupees`.
+- `ListingRepository`: the committed one in `customer/repositories`.
+- `ShopRepository` (Spring Data JPA).
+- `ReferencePrice` and `ReferencePriceRepository` are removed (decision D2, V3).
 
 Verify that `ddl-auto: validate` passes against the migrated schema (run the app once with the demo profile).
 
@@ -153,42 +173,38 @@ Spring Boot 4 test notes: `@WebMvcTest` lives in `org.springframework.boot.webmv
 ## 6. Parser (pure Java, no Spring, no DB)
 
 Package `com.twothreads.bachat.listing`. Classes:
-- `VoiceListingParser` with method `List<ParsedLine> parse(String transcript, Map<String, List<ReferencePrice>> reference)`, keyed by `itemKey`. Pass the reference data in so the parser stays pure and testable. Lookup by `(itemKey, unit)` scans the list; "default unit" applies only when the list has exactly one row.
-- `ParsedLine` (record): `rawPhrase`, `itemKey` (nullable), `itemName`, `quantity` (Integer, nullable), `unit`, `offerPrice` (nullable), `originalPrice` (nullable), `originalPriceSource` (`REFERENCE` | `MANUAL` | null), `issues` (List of `Issue`).
-- `Issue` (enum): `UNPARSED`, `MISSING_PRICE`, `ZERO_QUANTITY`, `PRICE_ABOVE_ORIGINAL`, `NO_UNIT`, `ORIGINAL_PRICE_MISSING`, `UNKNOWN_ITEM`.
+- `VoiceListingParser` with method `List<ParsedLine> parse(String transcript)`. It needs no reference data: the merchant speaks every price.
+- `ParsedLine` (record): `rawPhrase`, `itemKey` (nullable), `itemName`, `quantity` (Integer, nullable), `unit`, `offerPrice` (nullable), `originalPrice` (nullable), `issues` (List of `Issue`).
+- `Issue` (enum): `UNPARSED`, `MISSING_PRICE`, `ZERO_QUANTITY`, `PRICE_ABOVE_ORIGINAL`, `ORIGINAL_PRICE_MISSING`, `NO_UNIT`, `UNKNOWN_ITEM`.
 - `SynonymDictionary`: maps words to a canonical `itemKey` and display name. Keep it in a Java class or a small YAML/JSON resource. API: `Optional<Item> lookup(String normalisedWord)` and `Set<String> keys()`. It must cover, at minimum, keys `MILK`, `BREAD`, `TOMATO`, `EGG`, `CURD`, `PANEER`, `ONION`, each with: the English word and its plural (`milk`, `egg`, `eggs`, `tomato`, `tomatoes`), Hindi/Marathi romanised words (`doodh`, `dudh`, `tamatar`, `anda`, `dahi`, `pyaz`), and Devanagari forms (`दूध`, `ब्रेड`, `टमाटर`, `अंडा`, `दही`, `पनीर`, `कांदा`). The customer "Ask" spec reuses this class.
 - `NumberWords`: maps `ek..bees` and English `one..twenty` to digits. Keep it small.
 
 ### 6.1 Steps
 
-1. **Normalise**: trim, lowercase. Delete currency tokens entirely: `₹`, `rs.`, `rs`, `rupees`, `rupee`, `/-` (so `₹22`, `22rs` and `22/-` all become `22`). Collapse only spaces and tabs (`[ \t]+` to one space); do NOT collapse newlines, because step 2 splits on them.
-2. **Split** into segments on `,`, `;`, newline, ` and `, ` aur `, ` then `. Drop empty segments. Known limitation: an item name containing "and" (for example "salt and pepper") is cut in two and becomes UNPARSED; the shopkeeper fixes it by hand.
-3. **Number words to digits** (per segment, after splitting). Convert a word only when it is not the first word of the segment (the first word is the item, which protects names like `do`). Map `one..twenty`, `thirty..ninety`, and the Hindi/Marathi words `ek..das`. A tens word followed directly by a units word is summed (`twenty two` -> `22`, `bees do` is not required). Unmapped words are left alone.
-4. **Match each segment** with this pattern (case-insensitive, applied to the normalised segment). Quantity is a whole number; prices may have decimals:
+1. **Normalise**: trim, lowercase. Delete currency tokens entirely: `₹`, `rs.`, `rs`, `rupees`, `rupee`, `/-` (so `₹30`, `30rs` and `30/-` all become `30`). Collapse only spaces and tabs (`[ \t]+` to one space); do NOT collapse newlines, because step 2 splits on them.
+2. **Split** into segments on `,`, `;`, newline, ` and `, ` aur `, ` then `. Drop empty segments. Then **join**: a segment that starts with `original`, `discounted`, `discount` or `offer` belongs to the segment before it (the comma between the item and "original price" is a speech pause, not a new item), so it is appended to the previous segment with one space. Known limitation: an item name containing "and" (for example "salt and pepper") is cut in two and becomes UNPARSED; the shopkeeper fixes it by hand.
+3. **Number words to digits** (per segment, after splitting). Convert a word only when it is not the first word of the segment (the first word is the item, which protects names like `do`). Map `one..twenty`, `thirty..ninety`, and the Hindi/Marathi words `ek..das`. A tens word followed directly by a units word is summed (`twenty three` -> `23`). Unmapped words are left alone.
+4. **Match each segment** with this pattern (case-insensitive, applied to the normalised, joined segment). Quantity is a whole number; prices may have decimals. Original comes first, discounted second. The unit is optional, and the original price is required:
 
    ```
-   ^(?<item>[\p{L}][\p{L} .'-]*?)\s+(?<qty>\d+)\s+(?:(?<unit>[\p{L}]+)\s+)?(?<price>\d+(?:\.\d+)?)(?:\s+(?:original(?:\s+price)?|mrp|was)\s+(?<orig>\d+(?:\.\d+)?))?$
+   ^(?<item>[\p{L}][\p{L} .'-]*?)\s+(?<qty>\d+)\s+(?:(?<unit>[\p{L}]+)\s+)?original(?:\s+price)?\s+(?<orig>\d+(?:\.\d+)?)\s+(?:discounted|discount|offer)(?:\s+price)?\s+(?<price>\d+(?:\.\d+)?)$
    ```
 
-   Non-match -> `ParsedLine` with `UNPARSED`, `rawPhrase` set, all other fields null. (A segment with no price, like `bread 4 loaf`, is therefore UNPARSED. `MISSING_PRICE` is only raised by the browser and server when a saved row has an empty or zero price.)
+   Non-match -> `ParsedLine` with `UNPARSED`, `rawPhrase` set, all other fields null. This covers a missing original price, a missing discounted price, and the old short form `doodh 6 packet 22`. `MISSING_PRICE` is raised when the discounted price is 0 (step 7) and when a saved row has an empty or zero price.
 
-   The numbered steps below continue from here (items, units, quantity, prices).
-5. **Item**: look up `item` in `SynonymDictionary`. Found -> `itemKey` and display name. Not found -> keep the spoken word as `itemName` and add `UNKNOWN_ITEM` (warning). Unit `packets`, `pack`, `pkt` -> `packet`. `kilo`, `kilogram` -> `kg`. `gram` -> `g`. `litre`, `ltr` -> `l`. `pieces`, `pc`, `nang` -> `pc`. Unit missing -> default from reference (only when that `itemKey` has exactly one reference row) and add `NO_UNIT` (warning). If there is no reference row, default to `pc`.
+5. **Item**: look up `item` in `SynonymDictionary`. Found -> `itemKey` and display name. Not found -> keep the spoken word as `itemName` and add `UNKNOWN_ITEM` (warning). Unit `packets`, `pack`, `pkt` -> `packet`. `kilo`, `kilogram` -> `kg`. `gram` -> `g`. `litre`, `ltr` -> `l`. `pieces`, `pc`, `nang` -> `pc`. Unit missing -> `pc` and add `NO_UNIT` (warning).
 6. **Quantity**: must be > 0, else `ZERO_QUANTITY` (blocking).
 7. **Offer price**: `price` must be > 0 else `MISSING_PRICE` (blocking).
-8. **Original price**:
-   - If spoken (`orig` group present) -> use it, `originalPriceSource = MANUAL`.
-   - Else if reference row exists for `(itemKey, unit)` -> use `usual_price_rupees`, source `REFERENCE`.
-   - Else -> null, add `ORIGINAL_PRICE_MISSING` (warning).
+8. **Original price**: the regex always captures it (`orig`), so it is always set. Store it as given. The parser never fills it from anywhere else. `ORIGINAL_PRICE_MISSING` is raised only when a saved or edited row has an empty original price (server rules, section 7.2, and browser rules, section 8.1).
 9. **Price check**: if `originalPrice` is set and `offerPrice >= originalPrice` -> `PRICE_ABOVE_ORIGINAL` (blocking). Use `>=` so an offer equal to the original is also flagged.
 
-Blocking issues: `UNPARSED`, `MISSING_PRICE`, `ZERO_QUANTITY`, `PRICE_ABOVE_ORIGINAL`. Warnings: `NO_UNIT`, `ORIGINAL_PRICE_MISSING`, `UNKNOWN_ITEM`. A line with only warnings can be saved. A line with a blocking issue cannot.
+Blocking issues: `UNPARSED`, `MISSING_PRICE`, `ZERO_QUANTITY`, `PRICE_ABOVE_ORIGINAL`, `ORIGINAL_PRICE_MISSING`. Warnings: `NO_UNIT`, `UNKNOWN_ITEM`. A line with only warnings can be saved. A line with a blocking issue cannot.
 
 Prices are `BigDecimal`, never `double`. Scale prices to 2 decimals (`setScale(2, HALF_UP)`) before returning or saving. Tests compare with `compareTo`, not `equals`.
 
 ### 6.2 Sarvam output risk
 
-Sarvam may return Hindi words in Devanagari (`दूध`) when language is `hi-IN` or `unknown`. Test this on a real recording first. If it happens, either:
+Sarvam may return Hindi words in Devanagari (`दूध`) when language is `hi-IN` or `unknown`, and may return the numbers as digits or words. Test this on a real recording first. The template words `original price` and `discounted price` may also come back in another form (for example "original" alone, or "discount price"). The regex accepts `original` with or without `price`, and `discounted`, `discount` or `offer` with or without `price`. If Sarvam returns anything else, either:
 - add a Devanagari-to-key entry to `SynonymDictionary` (`दूध` -> `MILK`, `ब्रेड` -> `BREAD`, `टमाटर` -> `TOMATO`), or
 - use the transliteration option if Sarvam documents one (check docs.sarvam.ai; do not guess the parameter name).
 
@@ -204,7 +220,7 @@ Preview only. Writes nothing.
 
 Request:
 ```json
-{ "transcript": "doodh 6 packet 22, bread 4 loaf 30" }
+{ "transcript": "doodh 6 packet, original price 30 discounted price 23" }
 ```
 
 200 OK:
@@ -212,14 +228,13 @@ Request:
 {
   "lines": [
     {
-      "rawPhrase": "doodh 6 packet 22",
+      "rawPhrase": "doodh 6 packet original price 30 discounted price 23",
       "itemKey": "MILK",
       "itemName": "Milk",
       "quantity": 6,
       "unit": "packet",
-      "offerPrice": 22.00,
-      "originalPrice": 28.00,
-      "originalPriceSource": "REFERENCE",
+      "offerPrice": 23.00,
+      "originalPrice": 30.00,
       "issues": []
     }
   ],
@@ -240,14 +255,13 @@ Request:
 {
   "lines": [
     {
-      "rawPhrase": "doodh 6 packet 22",
+      "rawPhrase": "doodh 6 packet original price 30 discounted price 23",
       "itemKey": "MILK",
       "itemName": "Milk",
       "quantity": 6,
       "unit": "packet",
-      "offerPrice": 22.00,
-      "originalPrice": 28.00,
-      "originalPriceSource": "REFERENCE",
+      "offerPrice": 23.00,
+      "originalPrice": 30.00,
       "sellToday": false
     }
   ]
@@ -255,7 +269,7 @@ Request:
 ```
 
 Rules:
-- The server re-checks blocking rules: offer > 0, quantity > 0, offer < original when original is set, name not blank. Do not trust the client.
+- The server re-checks blocking rules: offer > 0, quantity > 0, original present and > 0, offer < original, name not blank. Do not trust the client.
 - `ends_at` rules, all in `Asia/Kolkata`:
   1. `closeAt` = today's `closing_time` (23:59 if null). If `closeAt` is already past when saving (for example a night-time test), use tomorrow's `closing_time` instead.
   2. If `expiry_date` is set and `sellToday` is false: `expiryEnd` = `expiry_date` at 23:59:59. `ends_at` = the earlier of `closeAt` and `expiryEnd`. If that is not in the future, return 422 "item already expired".
@@ -283,16 +297,16 @@ Shopper-facing. Returns only `ACTIVE` listings whose `ends_at` is in the future,
       "itemName": "Milk",
       "quantity": 6,
       "unit": "packet",
-      "offerPrice": 22.00,
-      "originalPrice": 28.00,
-      "discountPercent": 21,
+      "offerPrice": 23.00,
+      "originalPrice": 30.00,
+      "discountPercent": 23,
       "endsAt": "2026-11-15T21:00:00+05:30"
     }
   ]
 }
 ```
 
-`discountPercent` = (original - offer) / original * 100 rounded `HALF_UP` to a whole number, using `BigDecimal`; null when original is null. Compute it on the server. Format `endsAt` in the response with the `Asia/Kolkata` offset (`atZoneSameInstant`), not UTC, because the database column returns UTC.
+`discountPercent` = (original - offer) / original * 100 rounded `HALF_UP` to a whole number, using `BigDecimal`. It is never null, because the original price is required. Compute it on the server. Format `endsAt` in the response with the `Asia/Kolkata` offset (`atZoneSameInstant`), not UTC, because the database column returns UTC.
 
 ### 7.4 `POST /api/shops/{shopId}/listings/sold-out`
 
@@ -323,14 +337,16 @@ Internal table (editable). Columns:
 
 - `Heard` shows `rawPhrase`, read-only, small text.
 - `Item`, `Qty`, `Unit`, `Offer ₹`, `Original ₹` are inputs. Editing recalculates `% off` in the browser.
-- `Original ₹` edits set `originalPriceSource = MANUAL`.
+- `Original ₹` is required. An empty value adds `ORIGINAL_PRICE_MISSING` (blocking).
 - `Flags`: one badge per issue. Blocking issues in red, warnings in amber. Use plain words: "Price above original", "Original price missing", "Unit missing", "Not understood".
 - Row delete (✕). "Add row" button for a blank row.
-- Row with a blocking issue: the row is highlighted. The browser has no reference table, so on edits it re-checks only: quantity > 0 (`ZERO_QUANTITY`), offer > 0 (`MISSING_PRICE`), offer < original when both are set (`PRICE_ABOVE_ORIGINAL`), and empty original (`ORIGINAL_PRICE_MISSING`). Editing Item or Unit clears the row's `itemKey` and the REFERENCE badge, so the original price then counts as MANUAL if it stays. The server re-checks everything in 7.2 and sets `originalPriceSource` itself (REFERENCE only if the saved original equals the reference price for the row's item and unit, otherwise MANUAL). The server is the final gate.
+- Row with a blocking issue: the row is highlighted. The browser has no reference table, so on edits it re-checks: quantity > 0 (`ZERO_QUANTITY`), offer > 0 (`MISSING_PRICE`), offer < original (`PRICE_ABOVE_ORIGINAL`), and original present (`ORIGINAL_PRICE_MISSING`). The server re-checks everything in 7.2 and is the final gate.
 - "List now" is disabled while any row has a blocking issue. On click, POST to `/api/shops/1/listings`, then show "Live. Offers end at closing time." and the existing "Mark all sold out" button.
 - "Mark all sold out" calls `POST /api/shops/1/listings/sold-out`, then clears the table.
 
 Do not keep the dummy items array in the file.
+
+Demo stub: in `demo` mode, `StubSpeechClient` returns the template transcript `doodh 6 packet, original price 30 discounted price 23, bread 4 loaf, original price 35 discounted price 30` (it is in the speech package, so change it in the Merchant-page phase and say so in the commit).
 
 Language select: default stays `unknown`. The parse call does not depend on language.
 
@@ -339,10 +355,10 @@ Language select: default stays `unknown`. The parse call does not depend on lang
 - Replace `SHOPS` with a fetch of `GET /api/shops/1/listings` on mount. Show a loading line and an error line.
 - Follow/Following uses the server-side endpoints from `docs/customer-ask-implementation.md` section 5.6 (create an anonymous customer, `GET /api/shops`, subscriptions, `PUT`/`DELETE` follow). Show all shops with a Follow toggle and listings only for followed shops. A new customer follows nothing, so show "Follow a shop to see its offers" until they follow one.
 - Format: pluralise the unit when quantity > 1 ("6 packets", "5 kg" stays as is), and show `endsAt` with `toLocaleTimeString('en-IN', {hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata'})`.
-- Each listing row: item name, quantity and unit, offer price in bold, original price struck through (only when present), discount badge, "ends at" time from `endsAt`.
+- Each listing row: item name, quantity and unit, offer price in bold, original price struck through, discount badge, "ends at" time from `endsAt`.
 - Shop header: name from the response, "offer ends <closingTime>".
 - Empty state: "No offers right now."
-- Keep the "Directions" button and the note text. Change the note to: "Prices are set by each shop. Original price is the usual price."
+- Keep the "Directions" button. Change the note to: "Prices are set by each shop. Original price is the price before the discount."
 
 Use `₹` and the existing `price` / `old` CSS classes in `web/src/styles.css`.
 
@@ -355,16 +371,18 @@ No new routes. `/merchant` and `/customer` already exist and are forwarded by `S
 ### 9.1 Parser (`src/test/java/com/twothreads/bachat/listing/VoiceListingParserTest.java`)
 
 Plain JUnit, no Spring. Cover every row of the worked examples in section 3, plus:
-- Input variants from section 3 (case, `Rs`, `₹`, `/-`, `six` vs `6`, newlines).
+- Input variants from section 3 (case, `Rs`, `₹`, `/-`, `six` vs `6`, `thirty`, newlines).
+- The join rule: `doodh 6 packet, original price 30 discounted price 23` gives one line, not two.
+- Old short form `doodh 6 packet 22` -> `UNPARSED`.
 - Unknown item -> `UNKNOWN_ITEM`, item kept.
 - Gibberish segment -> `UNPARSED`, and the other segments still parse.
 - Empty string -> empty list.
-- `BigDecimal` values: `22` and `22.50` both parse exactly.
+- `BigDecimal` values: `23` and `22.50` both parse exactly.
 
 ### 9.2 Controller (`ListingControllerTest`, `@WebMvcTest`)
 
 - Parse: 200 with lines; 400 for blank transcript; 404 for unknown shop (mock the service).
-- Create: 201 for valid lines; 422 when a blocking line is sent; 422 message names the line.
+- Create: 201 for valid lines; 422 when a blocking line is sent (including a missing original price); 422 message names the line.
 - Sold out: 200 with count.
 - Listing read: 200 with `discountPercent` computed.
 
@@ -373,12 +391,13 @@ Plain JUnit, no Spring. Cover every row of the worked examples in section 3, plu
 - `ends_at` uses the earlier of closing time and expiry end of day.
 - Listing read excludes `SOLD_OUT`, `EXPIRED`, and listings whose `ends_at` is past.
 - Batch save rolls back when one line fails.
+- V3 applied: `reference_price` no longer exists, and `listing` has no `original_price_source` column.
 
 ### 9.4 Manual end-to-end
 
-1. `BACHAT_MODE=demo` (stub transcript `doodh 6 packet 22, bread 4 loaf 30`). Open `/merchant`. Expect the table with Milk (original 28, from reference) and Bread (original missing, warning). Fix Bread's original price, tap "List now".
+1. `BACHAT_MODE=demo` (stub transcript from section 8.1). Open `/merchant`. Expect the table with Milk (offer 23, original 30) and Bread (offer 30, original 35). Tap "List now".
 2. Open `/customer` in another tab (same browser). Follow "Sharma General Store" first (a new customer follows nothing). Expect Milk and Bread with strike-through prices. Tap "Mark all sold out" on Merchant. Refresh Customer. Expect "No offers right now."
-3. `BACHAT_MODE=live` with `SARVAM_API_KEY`. Speak the three example items in Chrome. Record which words Sarvam returned (digits, words, Devanagari) in the README.
+3. `BACHAT_MODE=live` with `SARVAM_API_KEY`. Speak the template for the three example items in Chrome. Record which words Sarvam returned (digits, words, Devanagari, and the template words) in the README.
 
 ### 9.5 Commands
 
@@ -399,16 +418,17 @@ cd web && npm install && npm run build
 
 ## 11. Decisions and open questions
 
-The defaults below are what the implementation uses. D1 and D2 were confirmed by the business owner on 2026-11-15. The rest stand unless changed.
+The defaults below are what the implementation uses. D1 was confirmed by the business owner on 2026-11-15. D2 was first set to a reference table and then revised by the owner on the same day: the merchant is the only source of prices. The rest stand unless changed.
 
 | # | Question | Default used | Why |
 |---|---|---|---|
-| D1 | Is the spoken price per unit or for the whole quantity? | **Per unit** (22 per packet, 15 per kg) | "Tomato 5 kg 15" for the whole lot is implausible |
-| D2 | Where does the original price come from? | **Reference table, merchant can override or speak it** | It is not in the speech example |
+| D1 | Is the spoken price per unit or for the whole quantity? | **Per unit** (23 per packet, 15 per kg) | "Tomato 5 kg 15" for the whole lot is implausible |
+| D2 | Where does the original price come from? | **The merchant always speaks it (required). No reference table.** Revised 2026-11-15 by the business owner | The merchant is the single source of truth; a catalog price can be wrong for the shop |
 | D3 | Can an offer equal the original price? | **No, blocked** | Selling at or above MRP is a problem for packaged goods |
-| D4 | Is "Follow" server-side? | **Local state in this spec; superseded by `docs/customer-ask-implementation.md` section 5.6, which moves Follow to the `subscription` table** | The customer Ask searches followed shops only |
+| D4 | Is "Follow" server-side? | **Server-side**, per `docs/customer-ask-implementation.md` section 5.6 | The customer Ask searches followed shops only |
 | D5 | Is the shop fixed? | **Shop id 1, hard-coded** | Single-shop demo |
 | D6 | Expiry date input? | **Not in UI for MVP; optional in API** | Speech rarely includes dates |
+| D7 | Order of the two spoken prices? | **Fixed: original first, then discounted** ("original price 30 discounted price 23") | One template, no guessing which number is which |
 
 ## 12. How to run this with Claude Code
 
@@ -421,19 +441,19 @@ Start a Claude Code session in the repo root. Give it one phase at a time so eac
 5. "Do phase 5 (only after the customer spec's phase 0 backend exists): `Customer.jsx` per section 8.2. Then run section 9.4 steps 1 and 2 and report what you saw."
 
 Phases in this spec:
-1. Migration, entities, repositories
+1. Migration, entities, repositories. As built: V2 and the reference table; then the correction to V3 (section 5.1), which removes the reference table and the source column.
 2. Parser and unit tests
 3. Endpoints and tests
 4. Merchant page
 5. Customer page and manual check
 
-Before starting phase 1, run `git status` and commit or stash any unrelated changes. Commit at the end of each phase as the Branch rule at the top says (on the feature branch only, never push); the user reviews each phase's diff before naming the next phase.
+Before starting a phase, run `git status` and commit or stash any unrelated changes. Commit at the end of each phase as the Branch rule at the top says (on the feature branch only, never push); the user reviews each phase's diff before naming the next phase.
 
 ## 13. Risks and checks
 
-- **Parser accuracy on real speech.** Sarvam may return words, digits, or Devanagari. Phase 2 must be tested with recordings, not only with typed strings. If accuracy is too low, the next step is an LLM parse fallback behind the same `parse` endpoint. That is a separate spec.
+- **Parser accuracy on real speech.** Sarvam may return words, digits, or Devanagari, and may change the template words. Phase 2 must be tested with recordings, not only with typed strings. If accuracy is too low, the next step is an LLM parse fallback behind the same `parse` endpoint. That is a separate spec.
 - **Spoken numbers and Hinglish.** "Chhe" and "das" are in the number map. Anything else goes to `UNPARSED` so the shopkeeper can type it. Do not guess.
+- **Two prices per item.** The merchant must say two prices for every item. A missed original price makes the line `UNPARSED`, so it is caught before saving. A wrong but valid number is not caught, except by the rule "offer below original".
 - **Time zone.** All `ends_at` logic uses `Asia/Kolkata`. Test around midnight.
 - **No auth.** Anyone with the URL can post or mark items sold out. Acceptable for the demo only.
-- **Reference prices.** Only two seed rows are real (from the business example). Fill the rest with real local prices before any real use.
 - **Browser mic.** Works on `localhost` and HTTPS only. Chrome recommended (see the STT spec).

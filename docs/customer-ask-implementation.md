@@ -1,7 +1,7 @@
 # Implementation spec: Customer "Ask" with LLM intent (Bachat Basket)
 
 Date: 2026-11-15
-Builds on: `docs/listing-from-voice-implementation.md` (listings, `reference_price`, `SynonymDictionary`, `GET /api/shops/{shopId}/listings`) and `docs/sarvam-stt-implementation.md` (speech-to-text).
+Builds on: `docs/listing-from-voice-implementation.md` (listings, `SynonymDictionary`, `GET /api/shops/{shopId}/listings`; the reference price table was removed, the merchant speaks both prices) and `docs/sarvam-stt-implementation.md` (speech-to-text).
 Implementer: Claude Code CLI. Do the phases in section 11 in order.
 
 **Branch:** work on `feature/voice-listing-and-customer-ask` only (the same branch as the listing spec; it was created from `frontend` and holds both specs, and they live on no other branch). Run `git branch --show-current` before each phase and stop if it is not this branch. Do not commit to `frontend` or `main`. Commit at the end of each phase with a message naming the phase. Do not push, open a PR, or merge unless the user asks.
