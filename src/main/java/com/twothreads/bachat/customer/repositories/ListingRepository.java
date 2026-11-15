@@ -26,7 +26,7 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
     // listings from every shop a customer is subscribed to
     @Query("""
            select l from Listing l
-           where l.status = com.example.subscribers.Listing.Status.ACTIVE
+           where l.status = com.twothreads.bachat.customer.entity.Listing.Status.ACTIVE
              and l.endsAt > :now
              and l.shopId in (select s.shopId from Subscription s
                               where s.customerId = :customerId and s.active = true)
@@ -36,7 +36,7 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
                                           @Param("now") OffsetDateTime now);
 
     @Modifying
-    @Query("update Listing l set l.status = com.example.subscribers.Listing.Status.EXPIRED "
-         + "where l.status = com.example.subscribers.Listing.Status.ACTIVE and l.endsAt <= :now")
+    @Query("update Listing l set l.status = com.twothreads.bachat.customer.entity.Listing.Status.EXPIRED "
+         + "where l.status = com.twothreads.bachat.customer.entity.Listing.Status.ACTIVE and l.endsAt <= :now")
     int expireOverdue(@Param("now") OffsetDateTime now);
 }
