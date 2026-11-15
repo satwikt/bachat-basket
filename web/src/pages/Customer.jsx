@@ -67,6 +67,11 @@ function endsLabel(iso) {
   })
 }
 
+/** "23:00:00" from the API -> "23:00" for display. */
+function hhmm(time) {
+  return time ? String(time).slice(0, 5) : ''
+}
+
 function directionsUrl(shop) {
   if (shop.latitude == null || shop.longitude == null) return null
   return `https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`
@@ -221,7 +226,7 @@ export default function Customer() {
                   <div className="cust-row">
                     <div>
                       <h3>{shop.name}</h3>
-                      {shop.closingTime && <div className="cust-muted">offer ends {shop.closingTime}</div>}
+                      {shop.closingTime && <div className="cust-muted">offer ends {hhmm(shop.closingTime)}</div>}
                     </div>
                     {link && (
                       <a className="cust-link" href={link} target="_blank" rel="noreferrer">Directions</a>
@@ -318,7 +323,7 @@ function ShopRow({ shop, distance, following, onToggle }) {
         <h3>{shop.name}</h3>
         <div className="cust-muted">
           {distance ? `${distance} · ` : ''}
-          {shop.closingTime ? `closes ${shop.closingTime}` : ''}
+          {shop.closingTime ? `closes ${hhmm(shop.closingTime)}` : ''}
         </div>
       </div>
       <button className={'cust-btn small' + (following ? ' alt' : '')} onClick={onToggle}>
