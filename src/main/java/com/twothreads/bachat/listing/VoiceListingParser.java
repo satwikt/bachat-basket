@@ -22,19 +22,19 @@ public final class VoiceListingParser {
 
     /** Currency words and symbols, removed during normalising. */
     private static final Pattern CURRENCY = Pattern.compile(
-            "₹|/-|(?<![\\p{L}\\p{M}])rs\\.?(?![\\p{L}\\p{M}])|(?<![\\p{L}\\p{M}])rupees?(?![\\p{L}\\p{M}])");
+            "₹|/-|(?<![\\p{L}\\p{M}])rs\\.?(?![\\p{L}\\p{M}])|(?<![\\p{L}\\p{M}])rupees?(?![\\p{L}\\p{M}])"
+                    + "|(?<![\\p{L}\\p{M}])(?:रुपीस|रुपये|रुपए|रुपया|रु)\\.?(?![\\p{L}\\p{M}])");
 
     /** Separators between segments. Newlines are kept by normalising, so they split here. */
     private static final Pattern SPLIT = Pattern.compile("\\s*[,;\\r\\n]+\\s*|\\s+(?:and|aur|then)\\s+");
 
-    /** A segment that continues the previous one (for example ", original price 30"). */
-    /** Words for "original" and "discounted" (English, Gujarati spellings). The template accepts these. */
+    /** Words for "original" and "discounted" (English, Gujarati and Hindi spellings). The template accepts these. */
     private static final String ORIGINAL_WORD =
-            "(?:original|ઓરિજનલ|ઓરિજિનલ|ઓરીજનલ|ઓરીજિનલ)";
+            "(?:original|ઓરિજનલ|ઓરિજિનલ|ઓરીજનલ|ઓરીજિનલ|ओरिजिनल|ओरिजनल|मूल्य)";
     private static final String DISCOUNTED_WORD =
-            "(?:discounted|discount|offer|ડિસ્કાઉન્ટેડ|ડિસ્કાઉન્ટ|ઓફર)";
-    /** "price" in English or Gujarati, optional after either word. */
-    private static final String PRICE_WORD = "(?:\\s+(?:price|પ્રાઈસ|કિંમત))?";
+            "(?:discounted|discount|offer|ડિસ્કાઉન્ટેડ|ડિસ્કાઉન્ટ|ઓફર|डिस्काउंटेड|डिस्काउंट|डिस्काउन्टेड|छूट)";
+    /** "price" in English, Gujarati or Hindi, optional after either word. */
+    private static final String PRICE_WORD = "(?:\\s+(?:price|પ્રાઈસ|કિંમત|प्राइस|कीमत|दाम))?";
 
     /** A segment that continues the previous one (for example ", original price 30"). */
     private static final Pattern CONTINUATION = Pattern.compile(
@@ -47,7 +47,8 @@ public final class VoiceListingParser {
 
     private static final Map<String, String> UNITS = Map.ofEntries(
             Map.entry("packets", "packet"), Map.entry("pack", "packet"), Map.entry("pkt", "packet"),
-            Map.entry("પેકેટ", "packet"),
+            Map.entry("પેકેટ", "packet"), Map.entry("पैकेट", "packet"),
+            Map.entry("किलो", "kg"), Map.entry("ग्राम", "g"), Map.entry("लीटर", "l"), Map.entry("नग", "pc"),
             Map.entry("kilo", "kg"), Map.entry("kilogram", "kg"), Map.entry("kilograms", "kg"),
             Map.entry("કિલો", "kg"),
             Map.entry("gram", "g"), Map.entry("grams", "g"), Map.entry("ગ્રામ", "g"),
