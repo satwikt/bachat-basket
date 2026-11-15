@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import '../customer.css'
+import { useRecorder } from '../useRecorder.js'
 
 const CUSTOMERS = '/api/customers'
 const ID_KEY = 'bb_customer_id'
@@ -71,6 +72,33 @@ function endsLabel(iso) {
 /** "23:00:00" from the API -> "23:00" for display. */
 function hhmm(time) {
   return time ? String(time).slice(0, 5) : ''
+}
+
+/** Words people say for each item. Same idea as the server's SynonymDictionary; keep them in step. */
+const ITEM_WORDS = {
+  MILK: ['milk', 'doodh', 'dudh', 'दूध'],
+  BREAD: ['bread', 'ब्रेड'],
+  TOMATO: ['tomato', 'tomatoes', 'tamatar', 'टमाटर'],
+  EGG: ['egg', 'eggs', 'anda', 'अंडा'],
+  CURD: ['curd', 'dahi', 'दही'],
+  PANEER: ['paneer', 'पनीर'],
+  ONION: ['onion', 'onions', 'pyaz', 'कांदा'],
+}
+
+/** Item keys named in a sentence, matching whole words only. */
+function itemKeysIn(text) {
+  const words = new Set(text.toLowerCase().split(/[\s,.!?;:।]+/).filter(Boolean))
+  const keys = new Set()
+  Object.entries(ITEM_WORDS).forEach(([key, list]) => {
+    if (list.some((w) => words.has(w))) keys.add(key)
+  })
+  return keys
+}
+
+/** True when the item's name is spoken, e.g. "amul butter" for "Amul butter". */
+function matchesName(text, name) {
+  const n = (name || '').trim().toLowerCase()
+  return n.length > 0 && text.toLowerCase().includes(n)
 }
 
 function directionsUrl(shop) {
@@ -190,6 +218,91 @@ export default function Customer() {
 
   const current = TABS.find((t) => t.key === tab)
   const followedShops = shops.filter((s) => followed.has(s.id))
+
+  // ---- Find a deal: speak or type, then search the offers of shops the customer follows ----
+
+  const recorder = useRecorder({ maxSeconds: 25 })
+  const [transcribing, setTranscribing] = useState(false)
+  const [dealQuery, setDealQuery] = useState('')
+  const [heard, setHeard] = useState('')
+  const [dealResults, setDealResults] = useState([])
+  const [dealMsg, setDealMsg] = useState('')
+
+  const micLabel = transcribing
+    ? 'Reading what you said…'
+    : recorder.recording
+      ? `Listening… ${recorder.seconds}s. Tap to stop.`
+      : 'Tap and ask, e.g. "tamatar"'
+
+  async function toggleMic() {
+    if (recorder.recording) {
+      recorder.stop()
+      return
+    }
+    setDealMsg('')
+    const err = await recorder.start()
+    if (err) setDealMsg(err)
+  }
+
+  // when a recording stops, send it to the speech service and search what it says
+  useEffect(() => {
+    if (!recorder.blob) return
+    transcribe(recorder.blob)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorder.blob])
+
+  async function transcribe(blob) {
+    setTranscribing(true)
+    setDealMsg('')
+    try {
+      const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+      const fd = new FormData()
+      fd.append('audio', blob, 'question.' + ext)
+      fd.append('language', 'unknown')
+      const r = await call('/api/speech/transcribe', { method: 'POST', body: fd })
+      if (!r.ok) {
+        setDealMsg('Could not hear that: ' + (r.data.error || 'try again'))
+        return
+      }
+      setHeard(r.data.transcript)
+      setDealQuery(r.data.transcript)
+      runSearch(r.data.transcript)
+    } catch (e) {
+      setDealMsg('Could not hear that: ' + e.message)
+    } finally {
+      setTranscribing(false)
+    }
+  }
+
+  function runSearch(text) {
+    const q = (text || '').trim()
+    setHeard(q)
+    setDealResults([])
+    if (!q) {
+      setDealMsg('Say or type an item first.')
+      return
+    }
+    if (followedShops.length === 0) {
+      setDealMsg('Follow a shop first (Nearby tab). Offers are searched only in shops you follow.')
+      return
+    }
+    const keys = itemKeysIn(q)
+    const pool = followedShops.flatMap((shop) =>
+      (offers[shop.id] || []).map((l) => ({ ...l, shopName: shop.name, shopLink: directionsUrl(shop) })),
+    )
+    const matches = pool
+      .filter((l) => (l.itemKey && keys.has(l.itemKey)) || matchesName(q, l.itemName))
+      .sort((a, b) => Number(a.offerPrice) - Number(b.offerPrice))
+    if (matches.length === 0) {
+      setDealMsg(
+        keys.size === 0
+          ? 'We could not find an item in that. Try milk, bread, tomato, egg, curd, paneer or onion.'
+          : 'No offers for that item from the shops you follow right now.',
+      )
+      return
+    }
+    setDealResults(matches)
+  }
   const withDistance = shops
     .map((s) => ({
       ...s,
@@ -300,9 +413,47 @@ export default function Customer() {
 
         {!loading && tab === 'deal' && (
           <div className="stack">
-            <input className="input" placeholder="e.g. where is the lowest tomato price?" disabled />
-            <button className="btn" disabled>Ask</button>
-            <div className="empty">Voice and typed questions are the next step to be built.</div>
+            <div className="mic-wrap">
+              <button
+                className={'mic' + (recorder.recording ? ' rec' : '')}
+                onClick={toggleMic}
+                disabled={transcribing}
+                aria-label={recorder.recording ? 'Stop listening' : 'Speak your question'}
+              >
+                🎤
+              </button>
+              <div className="cust-muted">{micLabel}</div>
+            </div>
+
+            <form className="search" onSubmit={(e) => { e.preventDefault(); runSearch(dealQuery) }}>
+              <input
+                className="input"
+                placeholder="Or type, e.g. tomato"
+                value={dealQuery}
+                onChange={(e) => setDealQuery(e.target.value)}
+              />
+              <button className="btn" type="submit">Search</button>
+            </form>
+
+            {heard && <div className="heard">We heard: {heard}</div>}
+            {dealMsg && <div className="empty">{dealMsg}</div>}
+
+            {dealResults.map((l) => (
+              <div className="item" key={l.id + '-' + l.shopId}>
+                <div>
+                  <strong>{l.itemName} · {l.quantity} {unitLabel(l.quantity, l.unit)}</strong>
+                  <small>
+                    {l.shopName} · ₹{l.offerPrice}
+                    {l.originalPrice != null && ` (was ₹${l.originalPrice})`}
+                    {l.discountPercent != null && ` · ${l.discountPercent}% off`}
+                    {` · ends ${endsLabel(l.endsAt)}`}
+                  </small>
+                </div>
+                {l.shopLink && (
+                  <a className="directions" href={l.shopLink} target="_blank" rel="noreferrer">Directions</a>
+                )}
+              </div>
+            ))}
           </div>
         )}
 

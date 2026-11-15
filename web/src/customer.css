@@ -103,3 +103,20 @@
 .cust .tabbar .l { font-size: 10.5px; line-height: 1.15; text-align: center; }
 .cust .tabbar button.active { color: var(--accent); font-weight: 600; }
 .cust .tabbar button.active .i { filter: none; opacity: 1; }
+
+/* Find a deal: microphone and search */
+.cust .mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0 4px; }
+.cust .mic {
+  width: 88px; height: 88px; border-radius: 50%; border: 0; background: var(--accent); color: #fff;
+  font-size: 34px; cursor: pointer; box-shadow: 0 10px 24px rgba(37, 99, 235, 0.30);
+}
+.cust .mic:disabled { background: #a9bfe6; cursor: not-allowed; box-shadow: none; }
+.cust .mic.rec { background: #dc2626; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); animation: cust-pulse 1.4s infinite; }
+@keyframes cust-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+  100% { box-shadow: 0 0 0 18px rgba(220, 38, 38, 0); }
+}
+.cust .search { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.cust .search .input { margin: 0; }
+.cust .search .btn { padding: 11px 14px; }
+.cust .heard { background: var(--soft); border-radius: 12px; padding: 10px 12px; font-size: 14px; color: var(--ink); }
