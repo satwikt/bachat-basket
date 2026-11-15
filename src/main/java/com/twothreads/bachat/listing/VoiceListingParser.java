@@ -26,7 +26,12 @@ public final class VoiceListingParser {
                     + "|(?<![\\p{L}\\p{M}])(?:रुपीस|रुपये|रुपए|रुपया|रु)\\.?(?![\\p{L}\\p{M}])");
 
     /** Separators between segments. Newlines are kept by normalising, so they split here. */
-    private static final Pattern SPLIT = Pattern.compile("\\s*[,;\\r\\n]+\\s*|\\s+(?:and|aur|then)\\s+");
+    private static final Pattern SPLIT = Pattern.compile("\\s*[,;।\\r\\n]+\\s*|\\s+(?:and|aur|then)\\s+");
+
+    /** Unit words that speech puts after a price ("original price 60 kg discounted price 35 kg"). */
+    private static final String UNIT_WORD =
+            "(?:kilograms?|kilos?|kgs?|grams?|litres?|liters?|ltr|packets?|pack|pkt|pieces?|piece|pc|nang"
+                    + "|किलो|केजी|ग्राम|लीटर|पैकेट|पैक|पीस|नग|કિલો|ગ્રામ|લિટર|પેકેટ|નંગ)";
 
     /** Words for "original" and "discounted" (English, Gujarati and Hindi spellings). The template accepts these. */
     private static final String ORIGINAL_WORD =
@@ -42,13 +47,17 @@ public final class VoiceListingParser {
 
     private static final Pattern TEMPLATE = Pattern.compile(
             "^(?<item>[\\p{L}\\p{M}][\\p{L}\\p{M} .'-]*?)\\s+(?<qty>\\d+)\\s+(?:(?<unit>[\\p{L}\\p{M}]+)\\s+)?"
-                    + ORIGINAL_WORD + PRICE_WORD + "\\s+(?<orig>\\d+(?:\\.\\d+)?)\\s+"
-                    + DISCOUNTED_WORD + PRICE_WORD + "\\s+(?<price>\\d+(?:\\.\\d+)?)$");
+                    + ORIGINAL_WORD + PRICE_WORD + "\\s+(?<orig>\\d+(?:\\.\\d+)?)"
+                    + "(?:\\s+" + UNIT_WORD + "(?![\\p{L}\\p{M}]))?\\s+"
+                    + DISCOUNTED_WORD + PRICE_WORD + "\\s+(?<price>\\d+(?:\\.\\d+)?)"
+                    + "(?:\\s+" + UNIT_WORD + "(?![\\p{L}\\p{M}]))?$");
 
     private static final Map<String, String> UNITS = Map.ofEntries(
             Map.entry("packets", "packet"), Map.entry("pack", "packet"), Map.entry("pkt", "packet"),
             Map.entry("પેકેટ", "packet"), Map.entry("पैकेट", "packet"),
-            Map.entry("किलो", "kg"), Map.entry("ग्राम", "g"), Map.entry("लीटर", "l"), Map.entry("नग", "pc"),
+            Map.entry("किलो", "kg"), Map.entry("केजी", "kg"), Map.entry("kg", "kg"), Map.entry("kgs", "kg"),
+            Map.entry("kilos", "kg"), Map.entry("ग्राम", "g"), Map.entry("लीटर", "l"), Map.entry("नग", "pc"),
+            Map.entry("पीस", "pc"), Map.entry("पैक", "packet"),
             Map.entry("kilo", "kg"), Map.entry("kilogram", "kg"), Map.entry("kilograms", "kg"),
             Map.entry("કિલો", "kg"),
             Map.entry("gram", "g"), Map.entry("grams", "g"), Map.entry("ગ્રામ", "g"),
@@ -80,7 +89,9 @@ public final class VoiceListingParser {
     static String normalise(String transcript) {
         String composed = Normalizer.normalize(transcript.trim(), Normalizer.Form.NFC);
         String lower = composed.toLowerCase(Locale.ROOT);
-        String noCurrency = CURRENCY.matcher(lower).replaceAll(" ");
+        // "पर" / "per" ("at", "per kg") is filler between the prices
+        String withoutFiller = lower.replaceAll("(?<![\\p{L}\\p{M}])(?:पर|per)(?![\\p{L}\\p{M}])", " ");
+        String noCurrency = CURRENCY.matcher(withoutFiller).replaceAll(" ");
         // speech tolerance: "twenty-three" -> "twenty three"; a filler "is" ("original price is 30") is dropped
         String spaced = noCurrency.replaceAll("(?<=\\p{L})-(?=\\p{L})", " ")
                 .replaceAll("(?<![\\p{L}\\p{M}])is(?![\\p{L}\\p{M}])", " ");

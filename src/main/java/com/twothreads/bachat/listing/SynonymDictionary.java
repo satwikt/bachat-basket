@@ -21,7 +21,7 @@ public final class SynonymDictionary {
             new Entry("MILK", "Milk", "milk", "doodh", "dudh", "दूध", "મિલ્ક", "मिल्क", "દૂધ"),
             new Entry("BREAD", "Bread", "bread", "ब्रेड", "બ્રેડ"),
             new Entry("TOMATO", "Tomato", "tomato", "tomatoes", "tamatar", "टमाटर",
-                    "ટામેટા", "ટમેટા", "ટામેટું"),
+                    "ટામેટા", "ટમેટા", "ટામેટું", "टोमेटो", "टोमेटोस", "टोमैटो"),
             new Entry("EGG", "Egg", "egg", "eggs", "anda", "अंडा", "ઈંડું", "ઇંડું", "ઈંડા", "ઇંડા"),
             new Entry("CURD", "Curd", "curd", "dahi", "दही", "દહીં"),
             new Entry("PANEER", "Paneer", "paneer", "पनीर", "પનીર"),

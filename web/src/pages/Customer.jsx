@@ -78,7 +78,7 @@ function hhmm(time) {
 const ITEM_WORDS = {
   MILK: ['milk', 'doodh', 'dudh', 'दूध', 'मिल्क', 'મિલ્ક', 'દૂધ'],
   BREAD: ['bread', 'ब्रेड'],
-  TOMATO: ['tomato', 'tomatoes', 'tamatar', 'टमाटर'],
+  TOMATO: ['tomato', 'tomatoes', 'tamatar', 'टमाटर', 'टोमेटो', 'टोमेटोस', 'टोमैटो'],
   EGG: ['egg', 'eggs', 'anda', 'अंडा'],
   CURD: ['curd', 'dahi', 'दही'],
   PANEER: ['paneer', 'पनीर'],
