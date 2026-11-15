@@ -101,6 +101,22 @@ function matchesName(text, name) {
   return n.length > 0 && text.toLowerCase().includes(n)
 }
 
+/**
+ * The customer offers endpoint returns listing read models (priceRupees, originalPriceRupees).
+ * The page shows offerPrice and originalPrice, so the names are set once here.
+ */
+function normaliseOffers(byShop) {
+  const out = {}
+  Object.entries(byShop || {}).forEach(([shopId, list]) => {
+    out[shopId] = (list || []).map((l) => ({
+      ...l,
+      offerPrice: l.offerPrice ?? l.priceRupees,
+      originalPrice: l.originalPrice ?? l.originalPriceRupees,
+    }))
+  })
+  return out
+}
+
 function directionsUrl(shop) {
   if (shop.latitude == null || shop.longitude == null) return null
   return `https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`
@@ -139,7 +155,7 @@ export default function Customer() {
     ])
     if (sub.status === 404 || off.status === 404) return null
     if (!s.ok || !sub.ok || !off.ok) throw new Error('the server did not respond')
-    return { shops: s.data, subs: sub.data, offers: off.data }
+    return { shops: s.data, subs: sub.data, offers: normaliseOffers(off.data) }
   }
 
   function apply(loaded) {
