@@ -10,9 +10,9 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
 /** Request and response shapes for the listing endpoints (spec section 7). */
-public final class ListingDto {
+public final class ListingApi {
 
-    private ListingDto() {
+    private ListingApi() {
     }
 
     // ---- POST /listings/parse ----

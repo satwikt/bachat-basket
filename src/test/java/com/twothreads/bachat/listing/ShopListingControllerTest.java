@@ -20,13 +20,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.twothreads.bachat.config.ApiExceptionHandler;
-import com.twothreads.bachat.listing.ListingDto.CreateResponse;
-import com.twothreads.bachat.listing.ListingDto.ListingView;
-import com.twothreads.bachat.listing.ListingDto.ListingsResponse;
-import com.twothreads.bachat.listing.ListingDto.ParseResponse;
-import com.twothreads.bachat.listing.ListingDto.ParsedLineView;
-import com.twothreads.bachat.listing.ListingDto.ShopView;
-import com.twothreads.bachat.listing.ListingDto.SoldOutResponse;
+import com.twothreads.bachat.listing.ListingApi.CreateResponse;
+import com.twothreads.bachat.listing.ListingApi.ListingView;
+import com.twothreads.bachat.listing.ListingApi.ListingsResponse;
+import com.twothreads.bachat.listing.ListingApi.ParseResponse;
+import com.twothreads.bachat.listing.ListingApi.ParsedLineView;
+import com.twothreads.bachat.listing.ListingApi.ShopView;
+import com.twothreads.bachat.listing.ListingApi.SoldOutResponse;
 
 @WebMvcTest(ShopListingController.class)
 @Import(ApiExceptionHandler.class)

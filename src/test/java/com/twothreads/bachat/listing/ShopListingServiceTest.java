@@ -24,9 +24,9 @@ import org.springframework.context.annotation.Import;
 
 import com.twothreads.bachat.customer.entity.Listing;
 import com.twothreads.bachat.customer.repositories.ListingRepository;
-import com.twothreads.bachat.listing.ListingDto.CreateRequest;
-import com.twothreads.bachat.listing.ListingDto.LineRequest;
-import com.twothreads.bachat.listing.ListingDto.ListingView;
+import com.twothreads.bachat.listing.ListingApi.CreateRequest;
+import com.twothreads.bachat.listing.ListingApi.LineRequest;
+import com.twothreads.bachat.listing.ListingApi.ListingView;
 
 // Use the migrated schema (Flyway V1..V3) with validation, like the app. The default
 // @DataJpaTest database is built by Hibernate from the entities, which does not match the migrations.
@@ -180,7 +180,7 @@ class ShopListingServiceTest {
         Listing past = listing(Listing.Status.ACTIVE, "2026-11-15T09:00:00+05:30");
         listings.saveAll(List.of(soldOut, expired, past));
 
-        ListingDto.ListingsResponse response = service.listActive(SHOP_ID);
+        ListingApi.ListingsResponse response = service.listActive(SHOP_ID);
 
         assertEquals(1, response.listings().size());
         assertEquals("Milk", response.listings().get(0).itemName());
@@ -204,7 +204,7 @@ class ShopListingServiceTest {
     void soldOutMarksActiveListings() {
         service.create(SHOP_ID, new CreateRequest(List.of(milk(null, false), milk(null, false))));
 
-        ListingDto.SoldOutResponse response = service.markAllSoldOut(SHOP_ID);
+        ListingApi.SoldOutResponse response = service.markAllSoldOut(SHOP_ID);
 
         assertEquals(2, response.updated());
         assertEquals(0, service.listActive(SHOP_ID).listings().size());

@@ -14,6 +14,7 @@ import com.twothreads.bachat.customer.entity.Listing;
 import com.twothreads.bachat.customer.entity.Subscription;
 import com.twothreads.bachat.customer.repositories.ListingRepository;
 import com.twothreads.bachat.customer.repositories.SubscribersRepositories;
+import com.twothreads.bachat.dto.ListingDto;
 
 @Service
 public class CustomerService {
@@ -21,18 +22,17 @@ public class CustomerService {
     private final SubscribersRepositories subscribersRepositories;
     private final ListingRepository listingRepository;
 
-    public CustomerService(SubscribersRepositories subscribersRepositories, ListingRepository listingRepository ) {
+    public CustomerService(SubscribersRepositories subscribersRepositories, ListingRepository listingRepository) {
         this.subscribersRepositories = subscribersRepositories;
         this.listingRepository = listingRepository;
     }
-  
 
     /**
      * Returns shopId -> active listings for every shop the customer is subscribed to.
      * Subscribed shops with no active listings are included with an empty list.
      */
     @Transactional(readOnly = true)
-    public Map<Long, List<Listing>> getListingsByShop(Long customerId) {
+    public Map<Long, List<ListingDto>> getListingsByShop(Long customerId) {
         List<Long> shopIds = subscribersRepositories.findByActiveTrueAndCustomerId(customerId)
                 .stream()
                 .map(Subscription::getShopId)
@@ -43,13 +43,13 @@ public class CustomerService {
             return Collections.emptyMap();
         }
 
-        Map<Long, List<Listing>> result = new LinkedHashMap<>();
+        Map<Long, List<ListingDto>> result = new LinkedHashMap<>();
         shopIds.forEach(id -> result.put(id, new ArrayList<>()));
 
         listingRepository
                 .findByShopIdInAndStatusAndEndsAtAfterOrderByEndsAtAsc(
                         shopIds, Listing.Status.ACTIVE, OffsetDateTime.now())
-                .forEach(l -> result.get(l.getShopId()).add(l));
+                .forEach(l -> result.get(l.getShopId()).add(ListingDto.from(l)));
 
         return result;
     }

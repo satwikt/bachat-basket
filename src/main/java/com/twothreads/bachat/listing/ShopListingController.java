@@ -9,12 +9,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.twothreads.bachat.listing.ListingDto.CreateRequest;
-import com.twothreads.bachat.listing.ListingDto.CreateResponse;
-import com.twothreads.bachat.listing.ListingDto.ListingsResponse;
-import com.twothreads.bachat.listing.ListingDto.ParseRequest;
-import com.twothreads.bachat.listing.ListingDto.ParseResponse;
-import com.twothreads.bachat.listing.ListingDto.SoldOutResponse;
+import com.twothreads.bachat.listing.ListingApi.CreateRequest;
+import com.twothreads.bachat.listing.ListingApi.CreateResponse;
+import com.twothreads.bachat.listing.ListingApi.ListingsResponse;
+import com.twothreads.bachat.listing.ListingApi.ParseRequest;
+import com.twothreads.bachat.listing.ListingApi.ParseResponse;
+import com.twothreads.bachat.listing.ListingApi.SoldOutResponse;
 
 import jakarta.validation.Valid;
 

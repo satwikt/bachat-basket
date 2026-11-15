@@ -17,15 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.twothreads.bachat.customer.entity.Listing;
 import com.twothreads.bachat.customer.repositories.ListingRepository;
-import com.twothreads.bachat.listing.ListingDto.CreateRequest;
-import com.twothreads.bachat.listing.ListingDto.CreateResponse;
-import com.twothreads.bachat.listing.ListingDto.LineRequest;
-import com.twothreads.bachat.listing.ListingDto.ListingView;
-import com.twothreads.bachat.listing.ListingDto.ListingsResponse;
-import com.twothreads.bachat.listing.ListingDto.ParseResponse;
-import com.twothreads.bachat.listing.ListingDto.ParsedLineView;
-import com.twothreads.bachat.listing.ListingDto.ShopView;
-import com.twothreads.bachat.listing.ListingDto.SoldOutResponse;
+import com.twothreads.bachat.dto.ListingDto;
+import com.twothreads.bachat.listing.ListingApi.CreateRequest;
+import com.twothreads.bachat.listing.ListingApi.CreateResponse;
+import com.twothreads.bachat.listing.ListingApi.LineRequest;
+import com.twothreads.bachat.listing.ListingApi.ListingView;
+import com.twothreads.bachat.listing.ListingApi.ListingsResponse;
+import com.twothreads.bachat.listing.ListingApi.ParseResponse;
+import com.twothreads.bachat.listing.ListingApi.ParsedLineView;
+import com.twothreads.bachat.listing.ListingApi.ShopView;
+import com.twothreads.bachat.listing.ListingApi.SoldOutResponse;
 import com.twothreads.bachat.shop.Shop;
 import com.twothreads.bachat.shop.ShopRepository;
 
@@ -204,11 +205,6 @@ public class ShopListingService {
     private ListingView toView(Listing l) {
         BigDecimal offer = l.getPriceRupees();
         BigDecimal original = l.getOriginalPriceRupees();
-        Integer discount = null;
-        if (original != null && original.signum() > 0) {
-            discount = original.subtract(offer).multiply(BigDecimal.valueOf(100))
-                    .divide(original, 0, RoundingMode.HALF_UP).intValue();
-        }
         return new ListingView(
                 l.getId(),
                 l.getItemName(),
@@ -216,7 +212,7 @@ public class ShopListingService {
                 l.getUnit(),
                 offer,
                 original,
-                discount,
+                ListingDto.discountPercent(original, offer),
                 l.getEndsAt().atZoneSameInstant(ZONE).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
     }
 

@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.twothreads.bachat.customer.entity.Listing;
 import com.twothreads.bachat.customer.repositories.ListingRepository;
+import com.twothreads.bachat.dto.ListingDto;
 
 @Service
 public class ListingService {
@@ -19,37 +20,43 @@ public class ListingService {
         this.listingRepository = listingRepository;
     }
 
+    /** Input is the write model (the entity); the result is a read model. */
     @Transactional
-    public Listing create(Listing listing) {
+    public ListingDto create(Listing listing) {
         if (listing.getEndsAt() == null || !listing.getEndsAt().isAfter(OffsetDateTime.now())) {
             throw new IllegalArgumentException("endsAt must be in the future");
         }
         listing.setStatus(Listing.Status.ACTIVE);
-        return listingRepository.save(listing);
+        return ListingDto.from(listingRepository.save(listing));
     }
 
     @Transactional(readOnly = true)
-    public Listing get(Long id) {
-        return listingRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Listing " + id + " not found"));
+    public ListingDto get(Long id) {
+        return ListingDto.from(load(id));
     }
 
     @Transactional(readOnly = true)
-    public List<Listing> activeForShop(Long shopId) {
-        return listingRepository.findByShopIdAndStatusAndEndsAtAfterOrderByEndsAtAsc(
-                shopId, Listing.Status.ACTIVE, OffsetDateTime.now());
+    public List<ListingDto> activeForShop(Long shopId) {
+        return listingRepository
+                .findByShopIdAndStatusAndEndsAtAfterOrderByEndsAtAsc(shopId, Listing.Status.ACTIVE, OffsetDateTime.now())
+                .stream()
+                .map(ListingDto::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<Listing> allForShop(Long shopId) {
-        return listingRepository.findByShopIdOrderByCreatedAtDesc(shopId);
+    public List<ListingDto> allForShop(Long shopId) {
+        return listingRepository.findByShopIdOrderByCreatedAtDesc(shopId)
+                .stream()
+                .map(ListingDto::from)
+                .toList();
     }
 
     @Transactional
-    public Listing markSoldOut(Long id) {
-        Listing listing = get(id);
+    public ListingDto markSoldOut(Long id) {
+        Listing listing = load(id);
         listing.setStatus(Listing.Status.SOLD_OUT);
-        return listing;
+        return ListingDto.from(listing);
     }
 
     @Transactional
@@ -61,5 +68,10 @@ public class ListingService {
     @Transactional
     public int expireOverdue() {
         return listingRepository.expireOverdue(OffsetDateTime.now());
+    }
+
+    private Listing load(Long id) {
+        return listingRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Listing " + id + " not found"));
     }
 }
