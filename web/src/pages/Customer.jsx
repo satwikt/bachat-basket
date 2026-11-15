@@ -214,8 +214,8 @@ export default function Customer() {
             {followedShops.length === 0 && (
               <Empty
                 title="Follow a shop to see its offers"
-                action="Find shops"
-                onAction={() => openTab('follow')}
+                action="Find shops nearby"
+                onAction={() => openTab('nearby')}
               />
             )}
             {followedShops.map((shop) => {
@@ -274,12 +274,21 @@ export default function Customer() {
 
         {!loading && tab === 'follow' && (
           <>
-            <div className="cust-muted cust-gap">Follow a shop to see its offers on Home.</div>
-            {shops.map((shop) => (
+            {followedShops.length === 0 && (
+              <Empty
+                title="You are not following any shop yet"
+                action="Find shops nearby"
+                onAction={() => openTab('nearby')}
+              />
+            )}
+            {followedShops.length > 0 && (
+              <div className="cust-muted cust-gap">Shops you follow. Their offers show on Home.</div>
+            )}
+            {followedShops.map((shop) => (
               <ShopRow
                 key={shop.id}
                 shop={shop}
-                following={followed.has(shop.id)}
+                following
                 onToggle={() => toggleFollow(shop.id)}
               />
             ))}
